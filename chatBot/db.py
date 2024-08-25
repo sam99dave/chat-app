@@ -19,6 +19,12 @@ def main():
     # # Store the JSON string in Redis with the chat name as the key
     # r.set(chat_name, [])
 
+    all_keys = r.keys('*') 
+    all_keys = [key.decode('utf-8') for key in all_keys]
+
+    for k in all_keys:
+        print(k)
+
     # Retrieve and print each dictionary from the Redis list
     list_length = r.llen('DEFAULT')
     for index in range(list_length):

@@ -1,16 +1,12 @@
 """
 TODO ::
-- Currently DB only has key DEFAULT
-- Update to the DB with new chat for differnt chat item will happen to the same key
-- Moving around different chat item will also bring up the same chat history
--- Update this so that DB has key for each chat item and clicking on a chat item
-loads the specific chat history (something like hx-vals will be useful)
 """
 
 from fasthtml.common import *
 import requests
 import json
 import redis
+import uuid
 
 from ui_components.home_page import *
 
@@ -69,7 +65,7 @@ def callOllama(msg):
         return None
     
 def ChatMessage(msg_idx):
-    print(f'messages: {messages}')
+    # print(f'messages: {messages}')
     msg = messages[msg_idx]
     txt = msg['content']
     role = msg['role']
@@ -109,14 +105,18 @@ def ChatInput():
     #              placeholder="Type a message",
     #              cls="input input-bordered w-full", hx_swap_oob='true')
 
-@app.get('/new_chat_window')
-def get_new_chat_window():
+@app.post('/new_chat_window')
+def get_new_chat_window(vals: dict):
+    print(f'vals: {vals}')
     # update the message with the current_chat_name db content
     global messages
     messages = []
 
     global ollama_history
     ollama_history = []
+
+    global current_chat_name
+    current_chat_name = vals['item_id'] if 'item_id' in vals else current_chat_name
 
     list_length = redis_.llen(current_chat_name)
     for index in range(list_length):
@@ -130,29 +130,69 @@ def get_new_chat_window():
 
     return chat_window
 
-def newChat(item_name):
+@app.post('/remove_chat_item')
+def remove_chat_item(vals: dict):
+    """Remove chat item from Redis & return empty string as response"""
+
+    _ = redis_.delete(vals['item_id'])
+
+    return ""
+
+def newChat(item_name, item_id):
+    item_args = {'item_id' : item_id}
+    item_tmp = f"{item_name}-{item_id.split('%%')[-1]}"
     chatItem = Li(
         A(
             f"{item_name}",
+            id = item_tmp,
             hx_on = 'click',
-            hx_get = '/new_chat_window',
-            # hx_post = '/new_chat_window',
+            hx_post = '/new_chat_window',
+            hx_vals = json.dumps(item_args),
             hx_target = '#chatwindow',
             hx_swap = 'outerHTML',
-            cls = 'text-lg'
-        )
+            cls = 'flex-1 text-lg'
+        ),
+        Button(
+            "-",
+            cls = 'btn btn-square w-12 h-6',
+            style = 'font-size: 1.5rem',
+            hx_target = f'#li-{item_tmp}',
+            hx_on = 'click',
+            hx_post = '/remove_chat_item', # if get or post not specified then the target item is removed by htmx
+            hx_vals = json.dumps(item_args),
+            hx_swap = 'outerHTML'
+
+        ),
+        cls = 'flex flex-row space-x-2',
+        id = f'li-{item_tmp}'
     )
 
     return chatItem
+
+def get_chat_item_names():
+    """Retrieve all the keys(chat items) from Redis"""
+
+    # retreive all the chat item names
+    all_keys = redis_.keys('*') 
+    all_keys = [key.decode('utf-8') for key in all_keys]
+    print(f'allkeys: {all_keys}')
+    all_keys = [key for key in all_keys if len(key.split('%%')) == 2]
+    print(f'filteredKeys: {all_keys}')
+
+    return all_keys
+
 
 @app.post('/new_chat')
 def get_new_chat(item_name:str):
     print(f'here...')
     # chat_window = ChatWindow()
-    new_chat = newChat(item_name)
+    key = str(uuid.uuid4())[-6:]
+    item_id = f'{item_name}%%{key}'
+    new_chat = newChat(item_name, item_id)
     return new_chat
 
 def ChatSideBar():
+    all_keys = get_chat_item_names()
     sidebar = Div(
         Div(
             Form(
@@ -184,6 +224,7 @@ def ChatSideBar():
         # ),
         Div(
             Ul(
+                *[newChat(key.split('%%')[0], key) for key in all_keys],
                 cls = 'menu menu-vertical bg-base-200 rounded-box h-[500px] overflow-y-auto',
                 id = 'chat-history-list'
             ),
