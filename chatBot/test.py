@@ -4,6 +4,8 @@ import json
 
 from ui_components.home_page import *
 
+MODEL_NAME = 'llama3'
+
 # Set up the app, including daisyui and tailwind for the chat component
 tlink = Script(src="https://cdn.tailwindcss.com"),
 dlink = Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css")
@@ -38,7 +40,7 @@ def callOllama(msg):
     chat_payload = {"role" : 'user', "content" : msg}
     ollama_history.append(chat_payload)
     payload = {
-        'model' : 'llama3',
+        'model' : MODEL_NAME,
         'messages' : ollama_history,
         'stream' : True
     }
@@ -70,25 +72,165 @@ def ChatMessage(msg_idx):
         ),
         Div(
             f"{txt}",
-            cls = 'chat-bubble'
+            cls = 'chat-bubble bg-gray-900',
         ),
         cls = f'chat {chat_class}',
         **stream_args if generating else {}
 
     )
 
+# @app.get('/reset_chat_input')
+# def reset_chat_input():
+#     return ChatInput()
+
 # The input field for the user message. Also used to clear the
 # input field after sending a message via an OOB swap
 def ChatInput():
     return Input(type="text", name='msg', id='msg-input',
                  placeholder="Type a message",
-                 cls="input input-bordered w-full", hx_swap_oob='true')
+                 cls="input input-bordered w-full")
+    # return Input(type="text", name='msg', id='msg-input',
+    #              placeholder="Type a message",
+    #              cls="input input-bordered w-full", hx_swap_oob='true')
 
-# @app.get('/chat-window')
-# def test1():
+@app.get('/new_chat_window')
+def get_new_chat_window():
+    chat_window = ChatWindow()
+    return chat_window
+
+def newChat(item_name):
+    chatItem = Li(
+        A(
+            f"{item_name}",
+            hx_on = 'click',
+            hx_get = '/new_chat_window',
+            hx_target = '#chatwindow',
+            hx_swap = 'outerHTML',
+            cls = 'text-lg'
+        )
+    )
+
+    return chatItem
+
+@app.post('/new_chat')
+def get_new_chat(item_name:str):
+    print(f'here...')
+    # chat_window = ChatWindow()
+    new_chat = newChat(item_name)
+    return new_chat
+
+def ChatSideBar():
+    sidebar = Div(
+        Div(
+            Form(
+                hx_post = '/new_chat', 
+                hx_target = '#chat-history-list',
+                hx_swap="beforeend"
+            )(
+                Input(type="text", name='item_name', placeholder="New Chat Name!!", cls = 'flex-1 rounded-box'),
+                Button(
+                    "+",
+                    cls = 'btn btn-square w-12 h-6',
+                    style = 'font-size: 1.5rem',
+                    # hx_get = '/new_chat',
+                    # hx_target = '#chatwindow',
+                    # hx_swap = 'outerHTML',
+                    # hx_on = 'submit' # default is this, not reqired but still adding
+                ),
+                cls = 'flex space-x-2'
+            )
+        ),
+        # Button(
+        #     "+",
+        #     cls = 'btn btn-square w-12 h-6',
+        #     style = 'font-size: 1.5rem',
+        #     hx_get = '/new_chat',
+        #     hx_target = '#chatwindow',
+        #     hx_swap = 'outerHTML',
+        #     hx_on = 'submit' # default is this, not reqired but still adding
+        # ),
+        Div(
+            Ul(
+                cls = 'menu menu-vertical bg-base-200 rounded-box h-[500px] overflow-y-auto',
+                id = 'chat-history-list'
+            ),
+            cls = 'flex-1 bg-base-200 p-2 rounded-box'
+        ),
+        cls = 'flex flex-col space-y-4 w-[300px] p-4 bg-gray-500 text-white rounded',
+        style = 'visibility: visible;'
+    )
+
+    return sidebar
+
+
+def ChatWindow():
+    # TODO :: Button has been disabled as currently of no use!
+    toggle_button = Button(
+        "Toggle Sidebar",
+        hx_get = '/toggle_sidebar',
+        hx_target = '#sidebar',
+        hx_swap = 'outerHTML',
+        cls = 'btn btn-disabled bg-blue-500 text-white px-4 py-2 rounded mb-4',
+        # hx_disable = 'True'
+    )
+    chatList = Div(
+        # *[ChatMessage(msg['content']) for msg in messages], 
+        id="chatlist", cls="chat-box h-[70vh] overflow-y-auto"
+    ),
+    page = Form(hx_post='/send_messsage', hx_target="#chatlist", hx_swap="beforeend")(
+                # Div(id="chatlist", cls="chat-box h-[70vh] overflow-y-auto"),
+                Div(cls="flex space-x-2 mt-2")(
+                    Group(
+                        ChatInput(), 
+                        Button("Send", cls="btn btn-primary")
+                    )
+                )
+           )
+    chat_window = Div(
+        toggle_button,
+        Div(
+            chatList, 
+            page,
+            cls = 'px-16'
+        ),
+        cls = 'flex-1 p-5 bg-gray-700 text-white rounded',
+        id = 'chatwindow'
+    )
+
+    # TODO: Toggle can be removed from the chatwindow and kept separate
+    return chat_window
+
+@app.get('/chat-window')
+def test1():
+    sidebar = ChatSideBar()
+    chat_window = ChatWindow()
+    container = Div(
+        sidebar,
+        chat_window,
+        cls = 'flex w-full max-w px-4 py-2 space-x-4'
+    )
+
+    # return Div(chatList, page)
+
+    return container
+
+@app.get('/')
+def test():
+    navbar = get_navbar()
+    main_div = main_template()
+
+    return Body(
+        navbar, 
+        main_div,
+        cls = 'w-[100vw] h-[100vh] overflow-y-hidden'
+    )
+
+# @app.get('/')
+# def ChatWindow():
+#     navbar = get_navbar()
 #     chatList = Div(
 #         # *[ChatMessage(msg['content']) for msg in messages], 
-#         id="chatlist", cls="chat-box h-[70vh] overflow-y-auto"
+#         id="chatlist", cls="chat-box h-[73vh] overflow-y-auto"
 #     ),
 #     page = Form(hx_post='/send_messsage', hx_target="#chatlist", hx_swap="beforeend")(
 #                 # Div(id="chatlist", cls="chat-box h-[70vh] overflow-y-auto"),
@@ -100,33 +242,7 @@ def ChatInput():
 #                 )
 #            )
 
-#     return (chatList, page)
-
-# @app.get('/')
-# def test():
-#     navbar = get_navbar()
-#     main_div = main_template()
-
-#     return navbar, main_div
-
-@app.get('/')
-def ChatWindow():
-    navbar = get_navbar()
-    chatList = Div(
-        # *[ChatMessage(msg['content']) for msg in messages], 
-        id="chatlist", cls="chat-box h-[73vh] overflow-y-auto"
-    ),
-    page = Form(hx_post='/send_messsage', hx_target="#chatlist", hx_swap="beforeend")(
-                # Div(id="chatlist", cls="chat-box h-[70vh] overflow-y-auto"),
-                Div(cls="flex space-x-2 mt-2")(
-                    Group(
-                        ChatInput(), 
-                        Button("Send", cls="btn btn-primary")
-                    )
-                )
-           )
-
-    return navbar, chatList, page
+#     return navbar, chatList, page
 
 @app.post('/send_messsage')
 def send(msg:str):
@@ -143,7 +259,10 @@ def send(msg:str):
     print(f'just after chunk!!')
     # response = f"sup {msg}" # TODO: replace this with model response
 
-    return ChatMessage(idx), ChatMessage(idx + 1), ChatInput()
+    return ChatMessage(idx), ChatMessage(idx + 1)
+
+    # TODO:: Issue with hx-swap-oob for the Input (Currently Input field won't reset) | SOLVE THIS
+    # return ChatMessage(idx), ChatMessage(idx + 1), ChatInput()
 
 # Route that gets polled while streaming
 @app.get("/chat_message/{msg_idx}")
