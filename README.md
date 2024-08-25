@@ -1,7 +1,5 @@
 # GenSuite!
 
-file:///home/sd99/Downloads/chatbot-demo.mp4
-
 - ChatBot
     - [x] ollama setup
     - [x] chat api usage
