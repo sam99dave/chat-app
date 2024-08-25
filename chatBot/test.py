@@ -1,10 +1,22 @@
+"""
+TODO ::
+- Currently DB only has key DEFAULT
+- Update to the DB with new chat for differnt chat item will happen to the same key
+- Moving around different chat item will also bring up the same chat history
+-- Update this so that DB has key for each chat item and clicking on a chat item
+loads the specific chat history (something like hx-vals will be useful)
+"""
+
 from fasthtml.common import *
 import requests
 import json
+import redis
 
 from ui_components.home_page import *
 
 MODEL_NAME = 'llama3'
+redis_ = redis.Redis(host='localhost', port=6379, db=0)
+current_chat_name = 'DEFAULT'
 
 # Set up the app, including daisyui and tailwind for the chat component
 tlink = Script(src="https://cdn.tailwindcss.com"),
@@ -14,6 +26,7 @@ app = FastHTML(hdrs=(tlink, dlink, picolink))
 # TODO: replace this with a better memory implementation
 messages = [] # memory for all the chat for the session!
 ollama_history = [] # list of dictionary {'role', 'content'}
+
 
 # Run the chat model in a separate thread
 @threaded
@@ -28,6 +41,9 @@ def get_response(r, idx):
 
     chat_payload = {"role" : 'assistant', "content" : messages[idx]["content"]}
     ollama_history.append(chat_payload)
+
+    redis_.rpush(current_chat_name, json.dumps(messages[idx - 1])) # user 
+    redis_.rpush(current_chat_name, json.dumps(chat_payload)) # assistant
 
 # Route that gets polled while streaming
 @app.get("/chat_message/{msg_idx}")
@@ -95,7 +111,23 @@ def ChatInput():
 
 @app.get('/new_chat_window')
 def get_new_chat_window():
+    # update the message with the current_chat_name db content
+    global messages
+    messages = []
+
+    global ollama_history
+    ollama_history = []
+
+    list_length = redis_.llen(current_chat_name)
+    for index in range(list_length):
+        json_data = redis_.lindex(current_chat_name, index)
+        dictionary = json.loads(json_data)
+        messages.append(dictionary)
+        # print(dictionary)
+
+    ollama_history = messages.copy()
     chat_window = ChatWindow()
+
     return chat_window
 
 def newChat(item_name):
@@ -104,6 +136,7 @@ def newChat(item_name):
             f"{item_name}",
             hx_on = 'click',
             hx_get = '/new_chat_window',
+            # hx_post = '/new_chat_window',
             hx_target = '#chatwindow',
             hx_swap = 'outerHTML',
             cls = 'text-lg'
@@ -174,7 +207,7 @@ def ChatWindow():
         # hx_disable = 'True'
     )
     chatList = Div(
-        # *[ChatMessage(msg['content']) for msg in messages], 
+        *[ChatMessage(idx) for idx, msg in enumerate(messages)], 
         id="chatlist", cls="chat-box h-[70vh] overflow-y-auto"
     ),
     page = Form(hx_post='/send_messsage', hx_target="#chatlist", hx_swap="beforeend")(
