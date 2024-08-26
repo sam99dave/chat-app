@@ -16,6 +16,6 @@
         - [x] Chat Item
         - [x] Create New Chat Item
         - [x] Delete Existing Chat Item
-        - [] Login page (Basic Done)
+        - [x] Login page (Decent Page!)
         - [] Pop Up for model selection
         - [] SideBar toggle 

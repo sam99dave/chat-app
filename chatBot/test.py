@@ -41,7 +41,48 @@ messages = [] # memory for all the chat for the session!
 ollama_history = [] # list of dictionary {'role', 'content'}
 
 @app.get('/login')
-def login(): return P(A('Login with GitHub', href=client.login_link()))
+def login(): #return P(A('Login with GitHub', href=client.login_link()))
+    # return Div(
+    #     Div(
+    #         H2(
+    #             "GitHub LogIn!",
+    #             cls = 'card-title'
+    #         ),
+    #         P(
+    #             "Log in through GitHub OAuth for access to the chatBot!"
+    #         ),
+    #         cls = 'card-body',
+    #     ),
+    #     cls = 'card bg-base-100 w-96 shadow-xl'
+    # )
+    return Body(
+        Div(
+            Figure(
+                Img(
+                    # src = "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp",
+                    src = 'https://img.icons8.com/?size=100&id=K8Hc0huSW4CN&format=png&color=000000',
+                    alt = 'tmp_img',
+                )
+            ),
+            Div(
+                H2(
+                    "GitHub LogIn!",
+                    cls = 'card-title'
+                ),
+                P(
+                    "Log in through GitHub OAuth for access to the chatBot!"
+                ),
+                Div(
+                    A('Login with GitHub', href=client.login_link()),
+                    cls = 'card-actions justify-end'
+                ),
+                cls = 'card-body',
+            ),
+            cls = 'card bg-base-300 w-96 shadow-xl'
+        ),
+        cls = 'h-screen flex items-center justify-center bg-base-100'
+    )
+
 
 @app.get('/auth_redirect')
 def auth_redirect(code:str, session):
