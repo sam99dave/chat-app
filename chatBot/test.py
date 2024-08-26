@@ -3,6 +3,9 @@ TODO ::
 """
 
 from fasthtml.common import *
+from fasthtml.oauth import GitHubAppClient
+from dotenv import load_dotenv
+import os
 import requests
 import json
 import redis
@@ -10,18 +13,46 @@ import uuid
 
 from ui_components.home_page import *
 
+load_dotenv()
+
 MODEL_NAME = 'llama3'
 redis_ = redis.Redis(host='localhost', port=6379, db=0)
 current_chat_name = 'DEFAULT'
 
+# Auth client setup for GitHub
+client = GitHubAppClient(os.getenv('GITHUB_OAUTH_CLIENT_ID'), 
+                         os.getenv('GITHUB_OAUTH_CLIENT_SECRET'),
+                         redirect_uri="http://localhost:8001/auth_redirect")
+login_link = client.login_link()
+
+def before(req, session):
+    auth = req.scope['auth'] = session.get('user_id', None)
+    if not auth: return RedirectResponse('/login', status_code=303)
+
+bware = Beforeware(before, skip=['/login', '/auth_redirect'])
+
 # Set up the app, including daisyui and tailwind for the chat component
 tlink = Script(src="https://cdn.tailwindcss.com"),
 dlink = Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css")
-app = FastHTML(hdrs=(tlink, dlink, picolink))
+app = FastHTML(before=bware, hdrs=(tlink, dlink, picolink))
 
 # TODO: replace this with a better memory implementation
 messages = [] # memory for all the chat for the session!
 ollama_history = [] # list of dictionary {'role', 'content'}
+
+@app.get('/login')
+def login(): return P(A('Login with GitHub', href=client.login_link()))
+
+@app.get('/auth_redirect')
+def auth_redirect(code:str, session):
+    print(f'code: {code}')
+    print(f'session: {session}')
+    if not code: return "No code provided!"
+    user_id = client.retr_info(code)
+    print(f'user_id: {user_id}')
+    session['user_id'] = user_id
+    print(f'session: {session}')
+    return RedirectResponse('/', status_code=303)
 
 
 # Run the chat model in a separate thread
@@ -106,7 +137,7 @@ def ChatInput():
     #              cls="input input-bordered w-full", hx_swap_oob='true')
 
 @app.post('/new_chat_window')
-def get_new_chat_window(vals: dict):
+def get_new_chat_window(vals: dict, session):
     print(f'vals: {vals}')
     # update the message with the current_chat_name db content
     global messages
@@ -116,7 +147,8 @@ def get_new_chat_window(vals: dict):
     ollama_history = []
 
     global current_chat_name
-    current_chat_name = vals['item_id'] if 'item_id' in vals else current_chat_name
+    if 'item_id' in vals:
+        current_chat_name = session['user_id']['login'] + '##' + vals['item_id']
 
     list_length = redis_.llen(current_chat_name)
     for index in range(list_length):
@@ -131,10 +163,11 @@ def get_new_chat_window(vals: dict):
     return chat_window
 
 @app.post('/remove_chat_item')
-def remove_chat_item(vals: dict):
+def remove_chat_item(vals: dict, session):
     """Remove chat item from Redis & return empty string as response"""
 
-    _ = redis_.delete(vals['item_id'])
+    dl_key = session['user_id']['login'] + '##' + vals['item_id']
+    _ = redis_.delete(dl_key)
 
     return ""
 
@@ -169,15 +202,17 @@ def newChat(item_name, item_id):
 
     return chatItem
 
-def get_chat_item_names():
+def get_chat_item_names(user_name):
     """Retrieve all the keys(chat items) from Redis"""
 
     # retreive all the chat item names
     all_keys = redis_.keys('*') 
     all_keys = [key.decode('utf-8') for key in all_keys]
     print(f'allkeys: {all_keys}')
-    all_keys = [key for key in all_keys if len(key.split('%%')) == 2]
+    all_keys = [key for key in all_keys if len(key.split('%%')) == 2 and user_name in key]
     print(f'filteredKeys: {all_keys}')
+    all_keys = [key.split('##')[-1] for key in all_keys]
+    print(f'ChatfilteredKeys: {all_keys}')
 
     return all_keys
 
@@ -191,8 +226,8 @@ def get_new_chat(item_name:str):
     new_chat = newChat(item_name, item_id)
     return new_chat
 
-def ChatSideBar():
-    all_keys = get_chat_item_names()
+def ChatSideBar(user_name):
+    all_keys = get_chat_item_names(user_name)
     sidebar = Div(
         Div(
             Form(
@@ -275,8 +310,9 @@ def ChatWindow():
     return chat_window
 
 @app.get('/chat-window')
-def test1():
-    sidebar = ChatSideBar()
+def test1(session):
+    user_name = session['user_id']['login']
+    sidebar = ChatSideBar(user_name)
     chat_window = ChatWindow()
     container = Div(
         sidebar,
