@@ -40,6 +40,11 @@ app = FastHTML(before=bware, hdrs=(tlink, dlink, picolink))
 messages = [] # memory for all the chat for the session!
 ollama_history = [] # list of dictionary {'role', 'content'}
 
+@app.get('/logout')
+def logout(session):
+    session.pop('user_id', None)
+    return RedirectResponse('/login', status_code=303)
+
 @app.get('/login')
 def login(): #return P(A('Login with GitHub', href=client.login_link()))
     # return Div(
@@ -307,7 +312,6 @@ def ChatSideBar(user_name):
             cls = 'flex-1 bg-base-200 p-2 rounded-box'
         ),
         cls = 'flex flex-col space-y-4 w-[300px] p-4 bg-gray-500 text-white rounded',
-        style = 'visibility: visible;'
     )
 
     return sidebar

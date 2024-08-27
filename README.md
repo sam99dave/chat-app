@@ -1,5 +1,6 @@
 # GenSuite!
 
+![Video Demo](others/output.gif)
 
 - ChatBot
     - [x] ollama setup

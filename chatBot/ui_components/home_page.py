@@ -29,6 +29,11 @@ def get_navbar():
                 hx_target = '#template',
                 hx_swap = 'outerHTML'
             ),
+            A(
+                "Logout", 
+                cls = 'absolute right-2 btn btn-ghost text-xl text-red-500',
+                href = '/logout',
+            ),
             cls = 'flex-1',
         ),
         cls = 'navbar bg-base-100',
