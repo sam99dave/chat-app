@@ -1,5 +1,6 @@
 """
-TODO ::
+TODO:
+    - Add response rating to sqlite
 """
 
 from fasthtml.common import *
@@ -141,6 +142,24 @@ def callOllama(msg):
     else:
         return None
     
+def chatRater(rating_txt: str):
+    return A(
+        f"{rating_txt}", 
+        cls = 'text-green-300' if rating_txt == 'Like' else 'text-red-300', 
+        hx_post = '/message-rated', 
+        hx_vals = json.dumps({"action" : rating_txt}) # TODO :: some unique id for rating storing
+    )
+
+@app.post('/message-rated')
+def rate_message(vals: dict):
+    """Rate the message and store in DB
+    TODO:
+        - Indicate that the action has been selected
+        - I think this should be done by sending an entirely new chatRater
+        - Save this info with appropriate handling to DB (sqlite maybe)"""
+    
+    return chatRater(vals["action"])
+    
 def ChatMessage(msg_idx):
     # print(f'messages: {messages}')
     msg = messages[msg_idx]
@@ -163,6 +182,11 @@ def ChatMessage(msg_idx):
             f"{txt}",
             cls = 'chat-bubble bg-gray-900',
         ),
+        Div(
+            chatRater("Like"),
+            chatRater("Dislike"),
+            cls = 'flex chat-footer opacity-50 space-x-4 p-1'
+        ) if role == 'assistant' else Div(),
         cls = f'chat {chat_class}',
         **stream_args if generating else {}
 
