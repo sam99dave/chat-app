@@ -89,6 +89,20 @@ def login(): #return P(A('Login with GitHub', href=client.login_link()))
         cls = 'h-screen flex items-center justify-center bg-base-100'
     )
 
+js = """
+    function toggleDiv() {
+        const div = document.getElementById("main-div");
+        // check if the div is currently displayed
+        if (div.style.display == "none") {
+            // Show the div if its hidden
+            div.style.display = "block";
+        } else {
+            // Hide the div if its shown
+            div.style.display = "none";
+        }
+    }
+"""
+
 
 @app.get('/auth_redirect')
 def auth_redirect(code:str, session):
@@ -336,6 +350,7 @@ def ChatSideBar(user_name):
             cls = 'flex-1 bg-base-200 p-2 rounded-box'
         ),
         cls = 'flex flex-col space-y-4 w-[300px] p-4 bg-gray-500 text-white rounded',
+        id = 'main-div'
     )
 
     return sidebar
@@ -345,10 +360,12 @@ def ChatWindow():
     # TODO :: Button has been disabled as currently of no use!
     toggle_button = Button(
         "Toggle Sidebar",
-        hx_get = '/toggle_sidebar',
-        hx_target = '#sidebar',
-        hx_swap = 'outerHTML',
-        cls = 'btn btn-disabled bg-blue-500 text-white px-4 py-2 rounded mb-4',
+        Script(js),
+        # hx_get = '/toggle_sidebar',
+        # hx_target = '#sidebar',
+        # hx_swap = 'outerHTML',
+        onclick = "toggleDiv()",
+        cls = 'btn bg-blue-500 text-white px-4 py-2 rounded mb-4',
         # hx_disable = 'True'
     )
     chatList = Div(
