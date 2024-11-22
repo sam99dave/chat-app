@@ -16,7 +16,7 @@ from ui_components.home_page import *
 
 load_dotenv()
 
-MODEL_NAME = 'llama3'
+MODEL_NAME = 'steamdj/llama3.1-cpu-only'
 redis_ = redis.Redis(host='localhost', port=6379, db=0)
 current_chat_name = 'DEFAULT'
 
